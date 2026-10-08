@@ -68,7 +68,7 @@
             {
               "id": "665ca55d-e386-40e6-b951-e4903c5f21fe",
               "name": "status",
-              "value": "={{ $json.status }}",
+              "value": "={{ $json.status === 200 ? 'Success' : 'Error' }}",
               "type": "string"
             }
           ]
@@ -115,7 +115,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "71b347dd-9fbb-4f97-b589-38c83fd29ead",
+  "versionId": "ee22f3db-ba86-4300-867e-c8008b05718c",
   "meta": {
     "instanceId": "74ee99bc740c6dac711ced63f616b978808d56ad1bdf9d964ab20472df081c38"
   },
