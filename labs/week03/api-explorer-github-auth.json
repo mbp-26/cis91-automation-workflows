@@ -1,0 +1,129 @@
+{
+  "name": "API Explorer - GitHub Auth - MP",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "42af285d-d9a4-41b9-aab3-085ec1908310",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/user",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3+json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n-cis91"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "fd438aa4-003f-451c-94a5-57b1d3ab2ba0",
+      "name": "Get My Profile",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ZIKD91qIo8MFJRTL",
+          "name": "Github PAT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dd36e236-e4a8-4381-beb6-f280d6c20813",
+              "name": "username",
+              "value": "={{ $json.login }}",
+              "type": "string"
+            },
+            {
+              "id": "6b04c52e-08d9-44a0-9bbb-7426684e35d9",
+              "name": "public_repos",
+              "value": "={{ $json.public_repos }}",
+              "type": "string"
+            },
+            {
+              "id": "6d3052d1-34bd-46d0-93b8-35af30c9cb1d",
+              "name": "account_created",
+              "value": "={{ $json.created_at.substring(0, 10) }}",
+              "type": "string"
+            },
+            {
+              "id": "92581933-a139-42c4-93e9-a02796a8d088",
+              "name": "profile_url",
+              "value": "={{ $json.html_url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "8f847920-71bb-489f-bb5f-3420c6434a70",
+      "name": "Extract Profile"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get My Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get My Profile": {
+      "main": [
+        [
+          {
+            "node": "Extract Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "61a8ee58-fbc4-40bd-9df3-568543b7977a",
+  "meta": {
+    "instanceId": "74ee99bc740c6dac711ced63f616b978808d56ad1bdf9d964ab20472df081c38"
+  },
+  "nodeGroups": [],
+  "id": "C7S85NJkZjAKcC3Y",
+  "tags": []
+}

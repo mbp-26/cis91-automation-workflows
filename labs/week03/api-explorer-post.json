@@ -1,0 +1,152 @@
+{
+  "name": "API Explorer - POST Request - MP",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ccbfa5d3-c042-49f5-a064-cd4db2d68982",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "46af8bd2-a1be-4a4f-b8b9-b2c53f986ad7",
+              "name": "title",
+              "value": "My Automation Journey",
+              "type": "string"
+            },
+            {
+              "id": "403a4e02-66eb-4e1e-a6e7-cc4d70617a27",
+              "name": "body",
+              "value": "Learning to build workflows with n8n in CIS 91",
+              "type": "string"
+            },
+            {
+              "id": "00ca21f4-d97f-4c93-8f13-4522211ab268",
+              "name": "userId ",
+              "value": "1",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "8ce3ec51-b691-4c9d-bd6a-59b63abb39a9",
+      "name": "Create Post Data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://jsonplaceholder.typicode.com/posts",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"title\": \"{{ $json.title }}\", \"body\": \"{{ $json.body }}\", \"userId\": {{ $json[\"userId \"] }} }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "0d828155-88c5-4d18-838a-1d629e076159",
+      "name": "Submit Post"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e0ffb4d3-8b7a-4227-9cc0-39f597aff3cc",
+              "name": "created_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "76f7a1a5-75c2-49ef-8b29-c5c8701bc385",
+              "name": "title",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "0ca9175d-aa22-46bf-991c-ededae4e15ad",
+              "name": "success",
+              "value": "={{ $json.id ? true : false }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        672,
+        0
+      ],
+      "id": "e8d55843-c7f6-44e1-9d0b-6ff9c3750443",
+      "name": "Extract Response"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Create Post Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Post Data": {
+      "main": [
+        [
+          {
+            "node": "Submit Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit Post": {
+      "main": [
+        [
+          {
+            "node": "Extract Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "910ed60d-099f-4454-8166-8b2b91a3a846",
+  "meta": {
+    "instanceId": "74ee99bc740c6dac711ced63f616b978808d56ad1bdf9d964ab20472df081c38"
+  },
+  "nodeGroups": [],
+  "id": "DfkSGhg8q1BoalxK",
+  "tags": []
+}

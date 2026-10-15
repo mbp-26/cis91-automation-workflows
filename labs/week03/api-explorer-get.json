@@ -1,0 +1,263 @@
+{
+  "name": "API Explorer - GET Requests - MP",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        16
+      ],
+      "id": "78fd238d-7942-400e-b2d5-6a9e38409d02",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4f339f03-469c-42d4-b31e-b4b77985a98d",
+              "name": "location",
+              "value": "={{ $json.nearest_area[0].areaName[0].value }}",
+              "type": "string"
+            },
+            {
+              "id": "9b128152-8283-465b-a2ed-139427ed64fb",
+              "name": "temp_f",
+              "value": "={{ $json.current_condition[0].temp_F }}",
+              "type": "string"
+            },
+            {
+              "id": "8776d38b-6456-41ed-98ac-12e19a540183",
+              "name": "description",
+              "value": "={{ $json.current_condition[0].weatherDesc[0].value }}",
+              "type": "string"
+            },
+            {
+              "id": "3dbc85de-f0be-4a49-82d1-6b980e147351",
+              "name": "humidity",
+              "value": "={{ $json.current_condition[0].humidity }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        384,
+        -176
+      ],
+      "id": "f596babb-4225-40fc-aeb0-3b83358c0487",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "07d8d829-1d25-4a85-9054-8ba7f2b26acb",
+              "name": "full_name",
+              "value": "={{ $json.results[0].name.first + \" \" + $json.results[0].name.last }}",
+              "type": "string"
+            },
+            {
+              "id": "7df19205-8b98-4c12-9eed-483e1fc50b7b",
+              "name": "email",
+              "value": "={{ $json.results[0].email }}",
+              "type": "string"
+            },
+            {
+              "id": "969cd8aa-24d4-4531-a56d-db5ecf73d25e",
+              "name": "country",
+              "value": "={{ $json.results[0].location.country }}",
+              "type": "string"
+            },
+            {
+              "id": "94bf589d-502c-4822-a5b5-471a32e49620",
+              "name": "age",
+              "value": "={{ $json.results[0].dob.age }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        384,
+        16
+      ],
+      "id": "60884342-a8d7-4ef3-b5c6-194bae678455",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1208f4d0-f8ca-4e0d-aa45-788d71a90966",
+              "name": "joke",
+              "value": "={{ $json.joke }}",
+              "type": "string"
+            },
+            {
+              "id": "0b717819-d0ba-4e73-9cfa-002a175f48a1",
+              "name": "joke_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        384,
+        208
+      ],
+      "id": "ac00da84-eab3-4e72-9b94-4428419c2123",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "url": "https://wttr.in/Palm+Desert?format=j1",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        160,
+        -176
+      ],
+      "id": "a40e19e2-8cf8-4d6f-b5b7-165bb09a56b8",
+      "name": "API 1: Weather Data"
+    },
+    {
+      "parameters": {
+        "url": "https://randomuser.me/api/",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": []
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        160,
+        16
+      ],
+      "id": "19084897-0790-499e-b604-a31b5efd9c5b",
+      "name": "API 2: Random User Profile"
+    },
+    {
+      "parameters": {
+        "url": "https://icanhazdadjoke.com/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        160,
+        208
+      ],
+      "id": "e1dd0807-0ab7-4b07-914f-60c46fe8795e",
+      "name": "API 3: Dad Joke"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "API 2: Random User Profile",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "API 1: Weather Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "API 3: Dad Joke",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API 1: Weather Data": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API 2: Random User Profile": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API 3: Dad Joke": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e2a9d154-7a8a-4f30-ac5a-fa46ecac7c75",
+  "meta": {
+    "instanceId": "74ee99bc740c6dac711ced63f616b978808d56ad1bdf9d964ab20472df081c38"
+  },
+  "nodeGroups": [],
+  "id": "VgX6kqfwddJxv4yR",
+  "tags": []
+}
