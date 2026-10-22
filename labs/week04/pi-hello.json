@@ -1,0 +1,62 @@
+{
+  "name": "MP - pi Hello",
+  "nodes": [
+    {
+      "id": "a1b2c3d4-1111-4aaa-9bbb-000000000001",
+      "name": "When clicking ‘Test workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a1b2c3d4-1111-4aaa-9bbb-000000000003",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1b2c3d4-1111-4aaa-9bbb-000000000002",
+              "name": "message",
+              "value": "Hello from pi",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "pinData": null,
+  "connections": {
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5bf47099-341c-4cb4-92a1-4181d4dae07b",
+  "meta": null,
+  "id": "dif7Zqr0o18zxp72",
+  "tags": []
+}
