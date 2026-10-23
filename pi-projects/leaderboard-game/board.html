@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bean Run – class leaderboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--bg:#0b1020;--card:#131c3a;--line:#2b3f6b;--dim:#7f92b8;--hot:#9fe8b8}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 700px at 50% -10%,#1a2450,#0b1020 60%);
+       color:#dfe8ff;font-family:ui-monospace,Consolas,monospace;display:flex;flex-direction:column}
+  header{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding:22px 34px 12px}
+  h1{margin:0;font-size:clamp(22px,3.2vw,40px);letter-spacing:.5px}
+  h1 span{color:var(--hot)}
+  .pill{font-size:clamp(11px,1.1vw,14px);padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim)}
+  .spacer{flex:1}
+  main{flex:1;padding:0 34px 26px;display:flex;flex-direction:column}
+  table{width:100%;border-collapse:collapse;font-size:clamp(15px,1.9vw,30px)}
+  th{text-align:left;color:var(--dim);font-weight:600;padding:10px 14px;border-bottom:2px solid var(--line);
+     font-size:clamp(11px,1.15vw,16px);letter-spacing:.08em;text-transform:uppercase}
+  td{padding:10px 14px;border-bottom:1px solid #1d2b4f}
+  tr.new td{animation:flash 2.4s ease-out}
+  @keyframes flash{0%{background:#2f6f4f;color:#fff}60%{background:#1d3b2e}100%{background:transparent}}
+  .rank{width:4ch;color:var(--dim)}
+  .medal{color:var(--hot)}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  footer{padding:12px 34px 20px;font-size:clamp(10px,1.05vw,13px);color:#5d6a8a;display:flex;gap:16px;flex-wrap:wrap}
+  #err{color:#ff9a9a}
+  .empty{color:var(--dim);font-size:clamp(14px,1.8vw,26px);padding:28px 14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Bean&nbsp;Run <span>leaderboard</span></h1>
+  <div class="pill" id="session">session –</div>
+  <div class="pill" id="sort">sorted by score</div>
+  <div class="spacer"></div>
+  <div class="pill" id="count">0 entries</div>
+</header>
+<main>
+  <div id="err"></div>
+  <table id="tbl" hidden>
+    <thead><tr><th class="rank">#</th><th>player</th><th class="num">score</th><th class="num">time</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="empty" id="empty">No runs yet – the board updates itself every 5 seconds.</div>
+</main>
+<footer>
+  <span>auto-refresh 5s</span>
+  <span>sort: press 1 score · 2 time · 3 name</span>
+  <span id="updated">–</span>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  var API="https://cis91-leaderboard-relay.michaelparina26.workers.dev";
+  var qs=new URLSearchParams(location.search);
+  var SESSION=(qs.get("session")||"cis91-w4").slice(0,32);
+  var sort=(qs.get("sort")||"score");
+  var KEY=(qs.get("key")||"").trim();
+  if(!KEY){ try{ KEY=(localStorage.getItem("beanrun.key")||"").trim(); }catch(e){} }
+  if(!KEY){ try{ KEY=(window.prompt("Class password")||"").trim(); localStorage.setItem("beanrun.key",KEY); }catch(e){ KEY=""; } }
+  var seen={}, first=true;
+
+  var $rows=document.getElementById("rows"), $tbl=document.getElementById("tbl"),
+      $empty=document.getElementById("empty"), $err=document.getElementById("err"),
+      $count=document.getElementById("count"), $sort=document.getElementById("sort"),
+      $updated=document.getElementById("updated");
+  document.getElementById("session").textContent="session "+SESSION;
+
+  function fmtMs(ms){
+    var s=Number(ms||0)/1000, m=Math.floor(s/60), r=s-m*60;
+    return m+":"+(r<10?"0":"")+r.toFixed(1);
+  }
+  var medal={1:"\u2460",2:"\u2461",3:"\u2462"};
+
+  function render(d){
+    var rows=(d.rows||[]);
+    $count.textContent=(d.total||rows.length)+" entries";
+    $sort.textContent="sorted by "+(d.sort||sort);
+    $updated.textContent="updated "+new Date().toLocaleTimeString();
+    $rows.textContent="";
+    if(!rows.length){
+      $tbl.hidden=true; $empty.hidden=false; return;
+    }
+    $tbl.hidden=false; $empty.hidden=true;
+    rows.forEach(function(r){
+      var tr=document.createElement("tr");
+      if(!first && !seen[r.run_id]) tr.className="new";
+      seen[r.run_id]=1;
+      var cells=[(medal[r.rank]||"")+" "+r.rank, r.player, String(r.score), fmtMs(r.ms)];
+      cells.forEach(function(v,i){
+        var td=document.createElement("td");
+        if(i===0) td.className="rank";
+        if(i>=2) td.className="num";
+        td.textContent=v;
+        tr.appendChild(td);
+      });
+      $rows.appendChild(tr);
+    });
+    first=false;
+  }
+
+  function tick(){
+    var url=API+"/board?session="+encodeURIComponent(SESSION)+"&key="+encodeURIComponent(KEY)+"&sort="+encodeURIComponent(sort);
+    fetch(url,{cache:"no-store"})
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.text(); })
+      .then(function(txt){
+        $err.textContent="";
+        var parsed=txt?JSON.parse(txt):[];
+        render(Array.isArray(parsed)?(parsed[0]||{rows:[],total:0}):parsed);
+      })
+      .catch(function(e){ $err.textContent="cannot reach n8n ("+e.message+") – retrying"; });
+  }
+
+  document.addEventListener("keydown",function(e){
+    var m={"1":"score","2":"time","3":"name"}[e.key];
+    if(m){ sort=m; first=true; tick(); }
+  });
+
+  tick();
+  setInterval(tick,5000);
+})();
+</script>
+</body>
+</html>

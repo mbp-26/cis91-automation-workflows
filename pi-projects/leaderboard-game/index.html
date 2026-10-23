@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bean Run — a simple platformer</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; background: #0b1020; overflow: hidden;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    touch-action: manipulation;
+  }
+  #wrap { position: fixed; inset: 0; display: grid; place-items: center; padding: 8px; }
+  canvas {
+    display: block; width: auto; height: auto; max-width: 100%; max-height: 100%;
+    aspect-ratio: 16 / 9; background: #1a2340; border-radius: 10px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.06);
+  }
+  #hint {
+    position: fixed; left: 0; right: 0; bottom: 6px; text-align: center;
+    font-size: 12px; color: #6b7794; user-select: none;
+  }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" width="960" height="540"></canvas></div>
+<div id="hint">&larr; &rarr; / A D move &nbsp;&middot;&nbsp; Space / W / &uarr; jump (hold = higher) &nbsp;&middot;&nbsp; R restart</div>
+<script>
+(function () {
+  "use strict";
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d", { alpha: false });
+  const W = 960, H = 540;
+
+  function fit() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  fit();
+  addEventListener("resize", fit);
+
+  const GROUND_Y = 470;
+  const LEVEL = { width: 3400 };
+
+  const platforms = [
+    { x: -40, y: GROUND_Y, w: 940, h: 200 },
+    { x: 1010, y: GROUND_Y, w: 720, h: 200 },
+    { x: 1840, y: GROUND_Y, w: 1600, h: 200 },
+    { x: 300, y: 380, w: 190, h: 22 },
+    { x: 560, y: 300, w: 160, h: 22 },
+    { x: 790, y: 222, w: 150, h: 22 },
+    { x: 1080, y: 388, w: 210, h: 22 },
+    { x: 1370, y: 322, w: 165, h: 22 },
+    { x: 1610, y: 250, w: 180, h: 22 },
+    { x: 1975, y: 400, w: 165, h: 22 },
+    { x: 2205, y: 330, w: 145, h: 22 },
+    { x: 2405, y: 258, w: 165, h: 22 },
+    { x: 2620, y: 340, w: 185, h: 22 },
+    { x: 2860, y: 404, w: 150, h: 22 }
+  ];
+
+  const coins = [
+    [360, 330], [470, 330], [610, 250], [700, 250], [845, 172],
+    [1140, 336], [1230, 336], [1425, 270], [1520, 270], [1670, 198],
+    [2010, 348], [2100, 348], [2245, 278], [2460, 206], [2550, 206],
+    [2700, 288], [2905, 352],
+    [640, 420], [1200, 420], [2300, 420], [3050, 420]
+  ].map(([x, y]) => ({ x, y, taken: false, phase: (x * 0.013) % 6.28 }));
+
+  const spikes = [
+    { x: 880, y: GROUND_Y - 18, w: 48, h: 18 },
+    { x: 1690, y: GROUND_Y - 18, w: 66, h: 18 },
+    { x: 2180, y: GROUND_Y - 18, w: 48, h: 18 },
+    { x: 2830, y: GROUND_Y - 18, w: 48, h: 18 },
+    { x: 620, y: 282, w: 44, h: 18 },
+    { x: 2430, y: 240, w: 44, h: 18 }
+  ];
+
+  const spawn = { x: 70, y: GROUND_Y - 60 };
+  const goal = { x: 3230, y: GROUND_Y - 120, w: 40, h: 120 };
+
+  const GRAVITY = 0.62, MAX_FALL = 15.5;
+  const ACCEL = 0.9, FRICTION = 0.82, MAX_RUN = 4.7;
+  const JUMP_V = -12.6, JUMP_CUT = 0.42;
+  const COYOTE = 6, BUFFER = 8;
+
+  const player = {
+    x: spawn.x, y: spawn.y, w: 32, h: 42, vx: 0, vy: 0,
+    onGround: false, facing: 1, coyote: 0, jumping: false, squash: 1
+  };
+
+  const state = { mode: "play", coins: 0, deaths: 0, time: 0, started: false };
+  const cam = { x: 0 };
+  let jumpBuffer = 0;
+
+  const keys = new Set();
+  const JUMP_KEYS = ["Space", "ArrowUp", "KeyW"];
+  const TRACKED = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
+                   "Space", "KeyA", "KeyD", "KeyW", "KeyR", "Enter"];
+
+  function reset(hard) {
+    player.x = spawn.x; player.y = spawn.y;
+    player.vx = 0; player.vy = 0;
+    player.onGround = false; player.coyote = 0; player.jumping = false;
+    cam.x = 0;
+    state.mode = "play"; state.started = false;
+    if (hard) {
+      coins.forEach((c) => { c.taken = false; });
+      state.coins = 0; state.deaths = 0; state.time = 0;
+    }
+  }
+
+  addEventListener("keydown", (e) => {
+    if (TRACKED.indexOf(e.code) !== -1) e.preventDefault();
+    if (e.repeat) return;
+    keys.add(e.code);
+    if (JUMP_KEYS.indexOf(e.code) !== -1) jumpBuffer = BUFFER;
+    if (e.code === "KeyR") reset(true);
+    if (e.code === "Enter" && state.mode === "win") reset(true);
+  }, { passive: false });
+
+  addEventListener("keyup", (e) => { keys.delete(e.code); });
+  addEventListener("blur", () => keys.clear());
+
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    jumpBuffer = BUFFER;
+    if (state.mode === "win") reset(true);
+  });
+
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const overlaps = (a, b) =>
+    a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+  function roundRect(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function update(dt) {
+    if (state.mode === "win") return;
+
+    const moving = keys.has("ArrowLeft") || keys.has("KeyA") ||
+                   keys.has("ArrowRight") || keys.has("KeyD");
+    if (moving) state.started = true;
+    if (state.started) state.time += 1 / 60;
+
+    let dir = 0;
+    if (keys.has("ArrowLeft") || keys.has("KeyA")) dir -= 1;
+    if (keys.has("ArrowRight") || keys.has("KeyD")) dir += 1;
+    if (dir) { player.vx += dir * ACCEL; player.facing = dir; }
+    else player.vx *= FRICTION;
+    player.vx = clamp(player.vx, -MAX_RUN, MAX_RUN);
+    if (Math.abs(player.vx) < 0.05) player.vx = 0;
+
+    if (player.onGround) player.coyote = COYOTE;
+    else if (player.coyote > 0) player.coyote--;
+
+    const holdingJump = JUMP_KEYS.some((k) => keys.has(k));
+    if (jumpBuffer > 0 && player.coyote > 0) {
+      player.vy = JUMP_V;
+      player.onGround = false;
+      player.jumping = true;
+      player.coyote = 0;
+      jumpBuffer = 0;
+      player.squash = 0.82;
+    }
+    if (jumpBuffer > 0) jumpBuffer--;
+
+    if (player.jumping && !holdingJump && player.vy < 0) {
+      player.vy *= JUMP_CUT;
+      player.jumping = false;
+    }
+    if (player.vy >= 0) player.jumping = false;
+
+    player.vy = Math.min(player.vy + GRAVITY, MAX_FALL);
+
+    player.x += player.vx;
+    for (const p of platforms) {
+      if (!overlaps(player, p)) continue;
+      if (player.vx > 0) player.x = p.x - player.w;
+      else if (player.vx < 0) player.x = p.x + p.w;
+      player.vx = 0;
+    }
+
+    const wasGround = player.onGround;
+    player.onGround = false;
+    player.y += player.vy;
+    for (const p of platforms) {
+      if (!overlaps(player, p)) continue;
+      if (player.vy >= 0) {
+        player.y = p.y - player.h;
+        player.onGround = true;
+        if (!wasGround) player.squash = 0.72;
+      } else {
+        player.y = p.y + p.h;
+      }
+      player.vy = 0;
+    }
+
+    player.x = clamp(player.x, 0, LEVEL.width - player.w);
+    player.squash += (1 - player.squash) * 0.18;
+
+    for (const c of coins) {
+      if (c.taken) continue;
+      if (overlaps(player, { x: c.x - 11, y: c.y - 11, w: 22, h: 22 })) {
+        c.taken = true; state.coins++; player.squash = 0.86;
+      }
+    }
+
+    const hb = { x: player.x + 5, y: player.y + 6, w: player.w - 10, h: player.h - 6 };
+    for (const s of spikes) if (overlaps(hb, s)) { die(); return; }
+    if (player.y > H + 260) { die(); return; }
+    if (overlaps(player, goal)) {
+      state.mode = "win";
+      window.dispatchEvent(new CustomEvent("pi:win", {
+        detail: { coins: state.coins, total: coins.length, seconds: state.time, deaths: state.deaths }
+      }));
+      return;
+    }
+
+    const target = clamp(player.x + player.w / 2 - W * 0.42, 0, LEVEL.width - W);
+    cam.x += (target - cam.x) * 0.12;
+  }
+
+  function die() {
+    state.deaths++;
+    player.x = spawn.x; player.y = spawn.y;
+    player.vx = 0; player.vy = 0;
+    player.onGround = false; player.coyote = 0; player.jumping = false;
+    cam.x = 0;
+    state.started = false;
+  }
+
+  let bgGrad = null;
+  function sky() {
+    if (!bgGrad) {
+      bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+      bgGrad.addColorStop(0, "#131c3a");
+      bgGrad.addColorStop(0.45, "#27406e");
+      bgGrad.addColorStop(1, "#6d7fa8");
+    }
+    return bgGrad;
+  }
+
+  function hills(offset, baseY, amp, color, step) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    for (let x = 0; x <= W; x += step) {
+      const t = (x + offset) * 0.0042;
+      const y = baseY - Math.sin(t) * amp - Math.sin(t * 2.3 + 1.1) * amp * 0.45;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function draw() {
+    ctx.fillStyle = sky();
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = "rgba(255,255,255,.5)";
+    for (let i = 0; i < 60; i++) {
+      const sx = (i * 137.5) % W;
+      const sy = (i * 73.3) % 220;
+      ctx.globalAlpha = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(state.time * 1.6 + i));
+      ctx.fillRect(sx, sy, 1.6, 1.6);
+    }
+    ctx.globalAlpha = 1;
+
+    const sunX = 760 - (cam.x * 0.03), sunY = 130;
+    const g = ctx.createRadialGradient(sunX, sunY, 8, sunX, sunY, 120);
+    g.addColorStop(0, "rgba(255,226,160,.95)");
+    g.addColorStop(0.35, "rgba(255,196,128,.35)");
+    g.addColorStop(1, "rgba(255,180,120,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(sunX, sunY, 120, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffe9b8";
+    ctx.beginPath(); ctx.arc(sunX, sunY, 34, 0, Math.PI * 2); ctx.fill();
+
+    hills(cam.x * 0.15, 360, 44, "#1d2b4f", 24);
+    hills(cam.x * 0.32, 420, 34, "#22355c", 18);
+    hills(cam.x * 0.55, 470, 22, "#2a4168", 14);
+
+    ctx.save();
+    ctx.translate(-Math.round(cam.x), 0);
+
+    for (const p of platforms) {
+      if (p.x + p.w < cam.x - 80 || p.x > cam.x + W + 80) continue;
+      ctx.fillStyle = "#3d6b4f";
+      roundRect(p.x, p.y, p.w, p.h, 7); ctx.fill();
+      ctx.fillStyle = "#63b878";
+      roundRect(p.x, p.y, p.w, Math.min(8, p.h), 6); ctx.fill();
+      ctx.fillStyle = "rgba(0,0,0,.18)";
+      roundRect(p.x + 3, p.y + Math.min(9, p.h), p.w - 6, Math.max(3, p.h - 12), 5); ctx.fill();
+    }
+
+    for (const s of spikes) {
+      if (s.x + s.w < cam.x - 40 || s.x > cam.x + W + 40) continue;
+      const n = Math.max(2, Math.round(s.w / 16));
+      const w = s.w / n;
+      ctx.fillStyle = "#b9c3d8";
+      for (let i = 0; i < n; i++) {
+        ctx.beginPath();
+        ctx.moveTo(s.x + i * w, s.y + s.h);
+        ctx.lineTo(s.x + i * w + w / 2, s.y);
+        ctx.lineTo(s.x + i * w + w, s.y + s.h);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.fillStyle = "rgba(0,0,0,.25)";
+      ctx.fillRect(s.x, s.y + s.h - 3, s.w, 3);
+    }
+
+    for (const c of coins) {
+      if (c.taken) continue;
+      if (c.x < cam.x - 40 || c.x > cam.x + W + 40) continue;
+      const bob = Math.sin(state.time * 3 + c.phase) * 3;
+      const spin = Math.abs(Math.cos(state.time * 2.2 + c.phase));
+      const rx = 3 + 9 * spin;
+      ctx.save();
+      ctx.translate(c.x, c.y + bob);
+      ctx.fillStyle = "rgba(255,208,96,.16)";
+      ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ffd060";
+      ctx.beginPath(); ctx.ellipse(0, 0, rx, 10, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ffeaa8";
+      ctx.beginPath(); ctx.ellipse(-rx * 0.25, -2, rx * 0.35, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.fillStyle = "#cfd8ea";
+    ctx.fillRect(goal.x, goal.y, 5, goal.h);
+    const wave = Math.sin(state.time * 4) * 4;
+    ctx.fillStyle = "#ff5d7a";
+    ctx.beginPath();
+    ctx.moveTo(goal.x + 5, goal.y + 6);
+    ctx.quadraticCurveTo(goal.x + 55, goal.y + 18 + wave, goal.x + 92, goal.y + 10);
+    ctx.lineTo(goal.x + 92, goal.y + 54);
+    ctx.quadraticCurveTo(goal.x + 55, goal.y + 62 + wave, goal.x + 5, goal.y + 50);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.35)";
+    ctx.fillRect(goal.x - 6, goal.y + goal.h - 5, 18, 5);
+
+    const sq = player.squash;
+    const pw = player.w / sq, ph = player.h * sq;
+    const px = player.x + (player.w - pw) / 2;
+    const py = player.y + (player.h - ph);
+
+    ctx.fillStyle = "rgba(0,0,0,.22)";
+    ctx.beginPath();
+    ctx.ellipse(player.x + player.w / 2, player.y + player.h + 4, pw * 0.46, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const bodyGrad = ctx.createLinearGradient(px, py, px, py + ph);
+    bodyGrad.addColorStop(0, "#8fd6ff");
+    bodyGrad.addColorStop(1, "#4aa8e8");
+    ctx.fillStyle = bodyGrad;
+    roundRect(px, py, pw, ph, 11); ctx.fill();
+    ctx.strokeStyle = "rgba(10,30,50,.55)";
+    ctx.lineWidth = 2;
+    roundRect(px, py, pw, ph, 11); ctx.stroke();
+
+    const eyeY = py + ph * 0.34;
+    const look = player.facing * 2.5;
+    ctx.fillStyle = "#0d1a2b";
+    ctx.beginPath(); ctx.arc(px + pw * 0.34 + look, eyeY, 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px + pw * 0.68 + look, eyeY, 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    ctx.beginPath(); ctx.arc(px + pw * 0.34 + look - 1, eyeY - 1.4, 1.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px + pw * 0.68 + look - 1, eyeY - 1.4, 1.2, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
+
+    ctx.textBaseline = "top";
+    ctx.font = "600 17px ui-monospace, Consolas, monospace";
+    ctx.fillStyle = "rgba(8,14,28,.55)";
+    roundRect(16, 16, 132, 34, 9); ctx.fill();
+    ctx.fillStyle = "#ffd060";
+    ctx.fillText("\u25c9 " + state.coins + "/" + coins.length, 30, 24);
+
+    ctx.fillStyle = "rgba(8,14,28,.55)";
+    roundRect(W - 148, 16, 132, 34, 9); ctx.fill();
+    ctx.fillStyle = "#cfe0ff";
+    ctx.textAlign = "right";
+    ctx.fillText(state.time.toFixed(1) + "s", W - 30, 24);
+    ctx.textAlign = "left";
+
+    if (state.deaths > 0) {
+      ctx.fillStyle = "rgba(255,120,140,.9)";
+      ctx.font = "600 14px ui-monospace, Consolas, monospace";
+      ctx.fillText("deaths " + state.deaths, 30, 60);
+    }
+
+    if (!state.started && state.mode === "play") {
+      ctx.globalAlpha = 0.55 + 0.35 * Math.sin(state.time * 2 + 0.6);
+      ctx.fillStyle = "#dfe8ff";
+      ctx.font = "600 22px ui-monospace, Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("Move with \u2190 \u2192  \u00b7  Jump with Space", W / 2, H * 0.28);
+      ctx.textAlign = "left";
+      ctx.globalAlpha = 1;
+    }
+
+    if (state.mode === "win") {
+      ctx.fillStyle = "rgba(6,10,22,.68)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#9fe8b8";
+      ctx.font = "700 54px ui-monospace, Consolas, monospace";
+      ctx.fillText("You made it!", W / 2, H * 0.34);
+      ctx.fillStyle = "#dfe8ff";
+      ctx.font = "600 22px ui-monospace, Consolas, monospace";
+      ctx.fillText(
+        "coins " + state.coins + "/" + coins.length +
+        "   \u00b7   time " + state.time.toFixed(2) + "s   \u00b7   deaths " + state.deaths,
+        W / 2, H * 0.46
+      );
+      ctx.fillStyle = "#8fa4c8";
+      ctx.font = "500 18px ui-monospace, Consolas, monospace";
+      ctx.fillText("press R or Enter to play again", W / 2, H * 0.56);
+      ctx.textAlign = "left";
+    }
+  }
+
+  const STEP = 1000 / 60;
+  let last = performance.now();
+  let acc = 0;
+
+  function frame(now) {
+    acc += Math.min(now - last, 100);
+    last = now;
+    while (acc >= STEP) { update(STEP); acc -= STEP; }
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  reset(true);
+  draw();
+  requestAnimationFrame(frame);
+})();
+</script>
+<script src="leaderboard-client.js"></script>
+</body>
+</html>
