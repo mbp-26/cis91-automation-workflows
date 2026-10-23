@@ -1,6 +1,22 @@
 # Bean Run — a simple browser platformer
 
+
 A tiny side-scrolling platformer that runs entirely in the browser: **one file, no build step, no dependencies, no network calls.**
+
+## Class links
+
+Session code `cis91-w4` — the game and the board only accept this code.
+
+| Purpose | URL |
+|---|---|
+| Game (students) | `https://raw.githack.com/mbp-26/cis91-automation-workflows/372b281/pi-projects/leaderboard-game/index.html?session=cis91-w4` |
+| Leaderboard (projector) | `https://raw.githack.com/mbp-26/cis91-automation-workflows/372b281/pi-projects/leaderboard-game/board.html?session=cis91-w4&key=<class-password>` |
+
+The revision `372b281` is pinned on purpose: raw.githack caches branch URLs, so `.../main/...` can
+serve a stale page for a few minutes after a push. Replace the hash with a newer commit to force a
+fresh copy. The class password is not stored in this repo — it is handed out in class and required by
+both pages (the Worker and n8n both check it).
+
 
 ## Run it
 
@@ -45,7 +61,7 @@ platformer/
 
 Finishing the level posts your run to n8n, then shows a leaderboard with **Refresh** and three sort modes: **Score**, **Time**, **Name**.
 
-- The page talks to a Cloudflare Worker relay (`/submit`, `/board`); the n8n webhook URLs are secrets held by that Worker, never in this repo.
+- Endpoints: `POST /webhook/leaderboard-submit`, `GET /webhook/leaderboard?session=…&sort=score|time|name`
 - Session defaults to `wk4`; override with `?session=yourcode` on the page URL
 - Score = `coins × 100 + max(0, (300 − seconds) × 10)`
 - Name is asked once and kept in `localStorage`; runs are submitted on a honour system
