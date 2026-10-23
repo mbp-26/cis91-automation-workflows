@@ -40,3 +40,12 @@ platformer/
 - Game-feel touches: gravity, terminal velocity, coyote time (6 frames), jump input buffering (8 frames), variable jump height (releasing early cuts the jump), and squash-and-stretch on takeoff, landing, and coin pickup.
 - **Parallax** hills, drifting sun glow, twinkling stars, spinning coins, and a waving flag — all procedurally drawn, no image assets.
 - Player falls below the level → respawn at the start (coins already collected stay collected); `R` resets the whole run.
+
+## Class leaderboard (n8n)
+
+Finishing the level posts your run to n8n, then shows a leaderboard with **Refresh** and three sort modes: **Score**, **Time**, **Name**.
+
+- Endpoints: `POST /webhook/leaderboard-submit`, `GET /webhook/leaderboard?session=…&sort=score|time|name`
+- Session defaults to `wk4`; override with `?session=yourcode` on the page URL
+- Score = `coins × 100 + max(0, (300 − seconds) × 10)`
+- Name is asked once and kept in `localStorage`; runs are submitted on a honour system

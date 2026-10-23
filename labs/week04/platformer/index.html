@@ -222,7 +222,13 @@
     const hb = { x: player.x + 5, y: player.y + 6, w: player.w - 10, h: player.h - 6 };
     for (const s of spikes) if (overlaps(hb, s)) { die(); return; }
     if (player.y > H + 260) { die(); return; }
-    if (overlaps(player, goal)) { state.mode = "win"; return; }
+    if (overlaps(player, goal)) {
+      state.mode = "win";
+      window.dispatchEvent(new CustomEvent("pi:win", {
+        detail: { coins: state.coins, total: coins.length, seconds: state.time, deaths: state.deaths }
+      }));
+      return;
+    }
 
     const target = clamp(player.x + player.w / 2 - W * 0.42, 0, LEVEL.width - W);
     cam.x += (target - cam.x) * 0.12;
@@ -446,5 +452,6 @@
   requestAnimationFrame(frame);
 })();
 </script>
+<script src="leaderboard-client.js"></script>
 </body>
 </html>
