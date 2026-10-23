@@ -1,0 +1,41 @@
+flowchart TD
+  subgraph HOST["1 - Host (public, no secrets)"]
+    REPO["GitHub repo<br/>mbp-26/cis91-automation-workflows<br/>pi-projects/leaderboard-game"]
+    CDN["raw.githack.com<br/>caches per commit ref"]
+    REPO -->|git push| CDN
+  end
+
+  subgraph CLIENT["2 - Browsers"]
+    GAME["Game page<br/>index.html + leaderboard-client.js"]
+    BOARD["Projector page<br/>board.html - polls every 5s"]
+  end
+
+  subgraph EDGE["3 - Cloudflare edge"]
+    W["Worker relay<br/>cis91-leaderboard-relay.workers.dev"]
+    W1["class password check"]
+    W2["CORS + no-cache"]
+    W3["optional KV rate limit"]
+    W --- W1
+    W --- W2
+    W --- W3
+  end
+
+  subgraph N8N["4 - n8n automation"]
+    S["Submit workflow<br/>Check Password - Validate and Score - Insert - Rank"]
+    L["List workflow<br/>Check Password - Sort"]
+  end
+
+  T[("Data Table<br/>cis-leaderboard-game<br/>source of truth")]
+
+  CDN -->|serves| GAME
+  CDN -->|serves| BOARD
+  GAME -->|"POST /submit  name + password + coins + ms"| W
+  BOARD -->|"GET /board  session + key + sort"| W
+  W -->|"forward - secret webhook URL"| S
+  W -->|"forward - secret webhook URL"| L
+  S -->|"INSERT row - score recomputed server-side"| T
+  L -->|"SELECT rows"| T
+  S -.->|"200 ranked JSON"| W
+  L -.->|"200 rows"| W
+  W -.->|"render board"| GAME
+  L -.->|"poll 5s"| BOARD

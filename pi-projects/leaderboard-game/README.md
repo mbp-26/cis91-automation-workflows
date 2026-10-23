@@ -1,7 +1,22 @@
-# Bean Run — a simple browser platformer
+# Bean Run — class leaderboard game
 
+A small browser platformer where finishing a run posts your score to **n8n**, which keeps a
+session leaderboard. Built for a CIS 91 class demo: the game is public, the plumbing behind it
+is not.
 
-A tiny side-scrolling platformer that runs entirely in the browser: **one file, no build step, no dependencies, no network calls.**
+```
+GitHub repo → raw.githack.com CDN → student browser
+                                        │ POST /submit, GET /board
+                                        ▼
+                             Cloudflare Worker relay  (password, CORS, rate limit)
+                                        │ forwards to secret webhook URLs
+                                        ▼
+                                  n8n workflows  →  Data Table (leaderboard)
+```
+
+Full diagram: [`diagrams/project-flow.svg`](diagrams/project-flow.svg) ·
+editable [`diagrams/project-flow.drawio`](diagrams/project-flow.drawio) ·
+source [`diagrams/project-flow.mmd`](diagrams/project-flow.mmd)
 
 ## Class links
 
@@ -12,56 +27,78 @@ Session code `cis91-w4` — the game and the board only accept this code.
 | Game (students) | `https://raw.githack.com/mbp-26/cis91-automation-workflows/372b281/pi-projects/leaderboard-game/index.html?session=cis91-w4` |
 | Leaderboard (projector) | `https://raw.githack.com/mbp-26/cis91-automation-workflows/372b281/pi-projects/leaderboard-game/board.html?session=cis91-w4&key=<class-password>` |
 
-The revision `372b281` is pinned on purpose: raw.githack caches branch URLs, so `.../main/...` can
-serve a stale page for a few minutes after a push. Replace the hash with a newer commit to force a
-fresh copy. The class password is not stored in this repo — it is handed out in class and required by
-both pages (the Worker and n8n both check it).
+The commit hash is pinned on purpose: raw.githack caches branch URLs, so `.../main/...` can serve a
+stale page for several minutes after a push. Bump the hash to force a fresh copy.
 
+The class password is **not** in this repo. Students type it into the start screen; the Worker and
+n8n both verify it.
 
-## Run it
-
-Open `index.html` in any modern browser:
-
-- **Double-click** `index.html`, or
-- `start index.html` (Windows), or
-- serve the folder if you prefer: `python -m http.server 8000` → <http://localhost:8000>
-
-Works from `file://` too, so you can drop the folder on any static host (GitHub Pages, Netlify, S3) as-is.
-
-## Controls
+## How it plays
 
 | Action | Keys |
-| --- | --- |
+|---|---|
 | Move | `←` `→` or `A` `D` |
 | Jump | `Space`, `W`, or `↑` (hold longer = jump higher) |
 | Restart | `R` (or `Enter` on the win screen) |
 | Touch | Tap the canvas to jump |
 
-## Goal
+Collect all **21 coins**, avoid the spikes, don't fall in the pits, and touch the pink flag at the far
+right. A run posts automatically on the flag, then shows the leaderboard with **Score / Time / Name**
+sorting and a **Refresh** button.
 
-Run left to right, collect the 21 coins, avoid the spikes, and don't fall in the pits. Reach the pink flag at the far end to win. The HUD tracks coins, elapsed time, and deaths.
+**Score** is `coins × 100 + max(0, (300 − seconds) × 10)` — recomputed by n8n, never trusted from
+the browser.
 
-## What's in the box
+## Files
 
+| File | Role |
+|---|---|
+| `index.html` | the game — canvas, physics, level, HUD, win screen (single file, no build step) |
+| `leaderboard-client.js` | name + password prompt, posts a finished run, renders the leaderboard panel |
+| `board.html` | projector view: full-screen board, auto-refresh every 5 s, keys `1`/`2`/`3` switch sort |
+| `diagrams/` | the request-flow diagram (`.svg`, `.drawio`, `.mmd`) |
+
+`index.html` + `leaderboard-client.js` are the only files students load; `board.html` is for the
+projector.
+
+## Security model
+
+The page is public, so it contains **no secrets** — no webhook URL, no password, no session list.
+What protects the data lives server-side:
+
+| Control | Where | Effect |
+|---|---|---|
+| Secret webhook URLs | Cloudflare Worker **secrets** | the page only knows the Worker URL; scanning it reveals nothing useful |
+| Class password | Worker + n8n `Check Password` node | every request is rejected (`401`) before n8n is touched |
+| Session allowlist | n8n | only known class codes are accepted |
+| Server-computed score | n8n | a client-supplied `score` is ignored |
+| Clamps | n8n | `coins 0…21`, `ms 10 s…1 h` |
+| Rate limit | n8n | 3 submissions per player per 60 s |
+| Row cap | n8n | a session stops accepting at 300 rows |
+| Name scrub | n8n | letters, digits, space, `.` `'` `-` only, 20 chars |
+| Read cap | n8n | board returns at most 100 rows |
+
+## Troubleshooting
+
+| Symptom | Meaning |
+|---|---|
+| "class password was rejected" (`401`) | wrong password as typed — use **Enter password again**, or clear `localStorage["beanrun.key"]` and reload |
+| "slow down (rate limited)" (`429`) | more than 3 submissions from one name in 60 s |
+| "rejected by the server" (`502`) | n8n threw — check Executions in n8n (the Worker deliberately hides upstream error bodies) |
+| Empty board | wrong `session` code in the URL |
+| Stale page after a push | githack cache — pin the commit hash instead of `main` |
+
+## Running it locally
+
+```bash
+cd pi-projects/leaderboard-game
+python -m http.server 8000        # or any static server
+# http://localhost:8000/index.html?session=cis91-w4
 ```
-platformer/
-└── index.html   # everything: markup, styles, canvas game loop
-```
 
-## Notes on the implementation
+Opening `index.html` from `file://` also works; the Worker allows cross-origin calls.
 
-- **Canvas 2D** rendering, fixed 960×540 logical resolution, HiDPI-aware, letterboxed to fit the window.
-- **Fixed 60 Hz timestep** with an accumulator, so physics are frame-rate independent.
-- **Axis-separated AABB collision** against platform rectangles, resolved on the X axis first, then Y.
-- Game-feel touches: gravity, terminal velocity, coyote time (6 frames), jump input buffering (8 frames), variable jump height (releasing early cuts the jump), and squash-and-stretch on takeoff, landing, and coin pickup.
-- **Parallax** hills, drifting sun glow, twinkling stars, spinning coins, and a waving flag — all procedurally drawn, no image assets.
-- Player falls below the level → respawn at the start (coins already collected stay collected); `R` resets the whole run.
+## Credits
 
-## Class leaderboard (n8n)
-
-Finishing the level posts your run to n8n, then shows a leaderboard with **Refresh** and three sort modes: **Score**, **Time**, **Name**.
-
-- Endpoints: `POST /webhook/leaderboard-submit`, `GET /webhook/leaderboard?session=…&sort=score|time|name`
-- Session defaults to `wk4`; override with `?session=yourcode` on the page URL
-- Score = `coins × 100 + max(0, (300 − seconds) × 10)`
-- Name is asked once and kept in `localStorage`; runs are submitted on a honour system
+Game, relay and workflows by Michael Parina for CIS 91. Fonts and graphics are drawn in code — no
+external assets, no dependencies.
