@@ -1,0 +1,93 @@
+{
+  "id": "egWlVwZKegiivpbF",
+  "name": "MP - Auto Upload Message",
+  "description": null,
+  "active": false,
+  "activeVersionId": null,
+  "createdAt": "2026-11-05T20:43:23.773Z",
+  "updatedAt": "2026-11-05T20:43:23.773Z",
+  "isArchived": false,
+  "versionId": "63cde686-9dd4-45a6-ae2f-be8c3e1f38db",
+  "versionCounter": 1,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
+  "nodes": [
+    {
+      "id": "93df301d-17ad-4ab0-a56e-0fc983e96240",
+      "name": "When clicking ‘Execute workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "efc115c0-3c6c-4266-9e1b-57bb9ad5a751",
+      "name": "Set Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bb33c1ee-5297-4512-9b9c-9e1dbf9287d4",
+              "name": "message",
+              "value": "This was automatically uploaded with n8n to github!",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Set Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": null,
+  "meta": null,
+  "tags": [],
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "egWlVwZKegiivpbF",
+      "projectId": "KhErxUHlDhLuuNMh",
+      "project": {
+        "id": "KhErxUHlDhLuuNMh",
+        "name": "Michael Parina <mparina801@mycod.us>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "df40df10-5491-4f49-ba7e-a1c3f7ebc32e",
+        "createdAt": "2026-09-29T19:28:38.737Z",
+        "updatedAt": "2026-09-29T19:35:41.023Z"
+      },
+      "createdAt": "2026-11-05T20:43:23.773Z",
+      "updatedAt": "2026-11-05T20:43:23.773Z"
+    }
+  ],
+  "activeVersion": null,
+  "parentFolder": null
+}
