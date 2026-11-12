@@ -1,0 +1,983 @@
+{
+  "id": "cqEKOn8nUhem0Iyw",
+  "name": "MP - Midterm",
+  "description": null,
+  "active": true,
+  "activeVersionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
+  "createdAt": "2026-11-12T15:56:55.955Z",
+  "updatedAt": "2026-11-12T19:24:20.867Z",
+  "isArchived": false,
+  "versionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
+  "versionCounter": 6,
+  "sourceWorkflowId": null,
+  "triggerCount": 1,
+  "nodes": [
+    {
+      "id": "4e5f6a72-8ca7-46c2-afef-e09727528ab3",
+      "name": "Midterm Webhook",
+      "webhookId": "f5e353b4-a6d8-4893-8b6b-0eb71c53feee",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "midterm-mp",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "89decb5d-c303-46c3-9b46-43735635b97e",
+      "name": "Extract Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const incoming = $input.first().json || {};\nconst body = incoming.body ?? {};\n\nlet message = \"\";\nif (typeof body === \"string\") {\n  message = body;\n} else if (body && typeof body === \"object\") {\n  message = body.message ?? body.text ?? body.question ?? body.notes ?? body.content ?? \"\";\n  if (!message) message = JSON.stringify(body);\n} else {\n  message = String(body ?? \"\");\n}\n\nmessage = String(message).trim().slice(0, 4000);\nif (!message) throw new Error(\"No message provided. Send JSON with a \\\"message\\\" field.\");\n\nreturn [{ json: { message, original: body, query: incoming.query ?? {} } }];"
+      }
+    },
+    {
+      "id": "0fbe26e4-b61b-4b19-8870-86f180c05c98",
+      "name": "Classify Message",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        460,
+        0
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are classifying messages submitted to a CIS 91 midterm project about an AI-assisted video/content pipeline.\n\nChoose exactly ONE category from this list:\n1. \"Upload Format\" — file formats, codecs, resolution, file size, upload limits, export settings, posting/publishing/share behavior, missing captions after upload, thumbnail/crop/cover upload issues, or video duration/monetization thresholds.\n2. \"Captions and Discovery\" — writing captions/titles, hashtags, links, keywords, SEO, search/discovery, or audience targeting. This is about caption content, not about a caption disappearing during upload.\n3. \"AI Disclosure and Policy\" — labeling AI-generated content, disclosure rules, copyright, plagiarism, platform AI policies, academic integrity, comment moderation/removal, or correcting a published video.\n4. \"Analytics and Growth\" — views, engagement, retention, watch time, traffic sources, audience growth, scheduling, performance metrics, or hooks/first-second drop-off.\n\nDisambiguation examples:\n- \"Why did Instagram post my Reel without the caption I wrote?\" -> Upload Format (a posting/publishing issue).\n- \"What should I write in my caption?\" -> Captions and Discovery (caption content).\n- \"Do I need to label AI-generated narration?\" -> AI Disclosure and Policy.\n- \"Why do viewers leave in the first second?\" -> Analytics and Growth.\n\nMessage to classify:\n\"\"\"\n{{ $json.message }}\n\"\"\"\n\nReturn the structured JSON with:\n- category: exactly one of the four category names above\n- confidence: a number from 0.0 to 1.0\n- reasoning: one or two sentences explaining the choice.",
+        "hasOutputParser": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "c4b17338-51b4-478a-a065-d2b933057a11",
+      "name": "OpenRouter Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        380,
+        200
+      ],
+      "parameters": {
+        "model": "deepseek/deepseek-v4.1-flash-1017",
+        "options": {
+          "temperature": 0
+        }
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "ihBbPEQQ2ykUgmyB",
+          "name": "MP - OpenRouter"
+        }
+      }
+    },
+    {
+      "id": "5c4b93b7-985a-4ffe-9b0e-c89b7562a049",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        600,
+        200
+      ],
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"category\": \"Upload Format\",\n  \"confidence\": 0.95,\n  \"reasoning\": \"The message asks which file formats and size limits are accepted, which is an upload-format concern.\"\n}"
+      }
+    },
+    {
+      "id": "ae555b26-14ff-43e5-81c5-84cd2ba316ca",
+      "name": "Validate Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const ALLOWED = [\"Upload Format\",\"Captions and Discovery\",\"AI Disclosure and Policy\",\"Analytics and Growth\"];\nconst src = $('Extract Message').first().json;\nconst ai = $input.first().json || {};\n\nlet out = ai.output ?? ai;\nif (typeof out === \"string\") {\n  try { out = JSON.parse(out); } catch {}\n}\nif (!out || typeof out !== \"object\") out = {};\n\nconst rawCategory = String(out.category ?? \"\").trim();\nconst canonical = ALLOWED.find((c) => c.toLowerCase() === rawCategory.toLowerCase()) || rawCategory;\nconst n = Number(out.confidence);\nconst confidence = Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;\nconst reasoning = String(out.reasoning ?? out.reason ?? \"\").trim() || \"No reasoning returned.\";\nconst outOfScope = confidence < 0.2;\n\nreturn [{\n  json: {\n    ok: true,\n    message: src.message,\n    classification: {\n      category: canonical,\n      confidence,\n      reasoning,\n    },\n    category_valid: ALLOWED.includes(canonical),\n    allowed_categories: ALLOWED,\n    out_of_scope: outOfScope,\n    original: src.original,\n    query: src.query,\n    at: new Date().toISOString(),\n  },\n}];"
+      }
+    },
+    {
+      "id": "81a2791f-ee57-463e-a041-887cb753360e",
+      "name": "Get Knowledge Base",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "position": [
+        940,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "returnAll": true,
+        "dataTableId": {
+          "__rl": true,
+          "value": "LfSjn3DjYu3Fv0oH",
+          "mode": "id",
+          "cachedResultName": "cis-midterm-knowledge-base"
+        }
+      }
+    },
+    {
+      "id": "a781f9fd-3bf6-4ade-9788-f40b4051a32d",
+      "name": "Match KB Entries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const cls = $('Validate Classification').first().json;\nconst rows = $input.all().map((i) => i.json).filter((r) => r && r.entry_id);\nconst category = String(cls.classification.category || \"\").toLowerCase();\nconst message = String(cls.message || \"\").toLowerCase();\nconst tokens = new Set(message.split(/[^a-z0-9]+/).filter(Boolean));\nconst outOfScope = Boolean(cls.out_of_scope);\n\nif (outOfScope) {\n  return [{\n    json: {\n      message: cls.message,\n      classification: cls.classification,\n      category_valid: cls.category_valid,\n      out_of_scope: true,\n      matched: [],\n      matched_count: 0,\n    },\n  }];\n}\n\nconst scored = rows\n  .map((r) => {\n    const kw = String(r.keywords || \"\").toLowerCase();\n    const platforms = String(r.platforms || \"\").toLowerCase();\n    let score = 0;\n    if (String(r.category || \"\").toLowerCase() === category) score += 2;\n    for (const part of kw.split(\",\").map((s) => s.trim()).filter(Boolean)) {\n      if (part && message.includes(part)) score += 3;\n    }\n    for (const t of tokens) {\n      if (t.length > 2 && kw.includes(t)) score += 1;\n      if (t.length > 2 && platforms.includes(t)) score += 1;\n    }\n    return { ...r, score };\n  })\n  .filter((r) => r.score > 0)\n  .sort((a, b) => b.score - a.score || String(a.entry_id).localeCompare(String(b.entry_id)))\n  .slice(0, 6);\n\nreturn [{\n  json: {\n    message: cls.message,\n    classification: cls.classification,\n    category_valid: cls.category_valid,\n    out_of_scope: false,\n    matched: scored,\n    matched_count: scored.length,\n  },\n}];"
+      }
+    },
+    {
+      "id": "e4b872bc-f44d-444e-8341-5391fbedda32",
+      "name": "Generate Response",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a professional support assistant for a CIS 91 midterm project about publishing short-form video to TikTok, YouTube Shorts, and Instagram Reels.\n\nA user sent this message:\n\"\"\"\n{{ $json.message }}\n\"\"\"\n\nThe classifier categorized it as:\n- Category: {{ $json.classification.category }}\n- Confidence: {{ $json.classification.confidence }}\n- Reasoning: {{ $json.classification.reasoning }}\n\nRelevant knowledge base entries:\n{{ JSON.stringify($json.matched, null, 2) }}\n\nRetrieval marked the question as out of scope: {{ $json.out_of_scope }}\n\nWrite a professional, helpful response that:\n1. Directly addresses the user's question.\n2. Uses only the facts in the knowledge base entries above; do not invent platform rules.\n3. Maintains a professional and helpful tone.\n4. Includes concrete next steps.\n5. If the knowledge base does not cover the issue, says so and recommends an escalation path (for example, check the platform's official help center or contact the instructor).\n6. If out_of_scope is true or there are no matched entries, clearly say the question is outside the project knowledge base and suggest an appropriate escalation.\n\nReturn structured JSON with:\n- response: the full response text (2–5 short paragraphs or a short list)\n- next_steps: an array of 2–4 concrete next steps\n- escalation: a short escalation note, or an empty string if none is needed.",
+        "hasOutputParser": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "7505203e-7f21-41e1-867a-6bec6bfbed5d",
+      "name": "OpenRouter Chat Model (Response)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        200
+      ],
+      "parameters": {
+        "model": "deepseek/deepseek-v4.1-flash-1017",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "ihBbPEQQ2ykUgmyB",
+          "name": "MP - OpenRouter"
+        }
+      }
+    },
+    {
+      "id": "0f6b912c-023a-49fb-8c8a-51064a531791",
+      "name": "Response Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1540,
+        200
+      ],
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"response\": \"A professional response that answers the question using the knowledge base.\",\n  \"next_steps\": [\n    \"First concrete step\",\n    \"Second concrete step\"\n  ],\n  \"escalation\": \"Contact the platform's official help center if the issue persists.\"\n}"
+      }
+    },
+    {
+      "id": "c7edbf4a-9b1e-4b8c-8d61-014435951bec",
+      "name": "Build Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1660,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const src = $('Match KB Entries').first().json;\nconst ai = $input.first().json || {};\n\nlet out = ai.output ?? ai;\nif (typeof out === \"string\") {\n  try { out = JSON.parse(out); } catch { out = { response: out }; }\n}\nif (!out || typeof out !== \"object\") out = {};\n\nconst response = String(out.response ?? out.answer ?? \"\").trim() || \"No response was generated. Please try again.\";\nconst nextSteps = Array.isArray(out.next_steps) ? out.next_steps.map((s) => String(s)).filter(Boolean) : [];\nconst escalation = String(out.escalation ?? \"\").trim();\nconst timestamp = new Date().toISOString();\n\nreturn [{\n  json: {\n    ok: true,\n    timestamp,\n    message: src.message,\n    classification: src.classification,\n    category_valid: src.category_valid,\n    matched_entries: src.matched.map((m) => ({\n      entry_id: m.entry_id,\n      question: m.question,\n      score: m.score,\n    })),\n    matched_count: src.matched_count,\n    out_of_scope: Boolean(src.out_of_scope || src.matched_count === 0),\n    ai_response: response,\n    next_steps: nextSteps,\n    escalation,\n    delivery_status: \"webhook_200\",\n  },\n}];"
+      }
+    },
+    {
+      "id": "5b6d9d39-5918-4fa0-b51e-c20b19849d2e",
+      "name": "Make Log Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1880,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\n\nreturn [{\n  json: {\n    timestamp: r.timestamp,\n    message: r.message,\n    category: r.classification.category,\n    confidence: r.classification.confidence,\n    reasoning: r.classification.reasoning,\n    matched_entries: (r.matched_entries || []).map((m) => m.entry_id).join(\", \"),\n    matched_count: r.matched_count,\n    out_of_scope: Boolean(r.out_of_scope),\n    ai_response: r.ai_response,\n    next_steps: JSON.stringify(r.next_steps || []),\n    escalation: r.escalation || \"\",\n    delivery_status: r.delivery_status,\n  },\n}];"
+      }
+    },
+    {
+      "id": "ba8edd7a-3301-447b-9fb6-14e743851070",
+      "name": "Log Interaction",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "onError": "continueRegularOutput",
+      "position": [
+        2100,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "kiE336aXGCLrTDFb",
+          "mode": "id",
+          "cachedResultName": "cis-midterm-interaction-log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "schema": []
+        }
+      }
+    },
+    {
+      "id": "5d9c49bd-bdbd-45d4-acff-7a7caaba6369",
+      "name": "Restore Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: $('Build Result').first().json }];"
+      }
+    },
+    {
+      "id": "b9940911-53d8-4287-97b2-d759dea18a84",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2540,
+        0
+      ],
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST,OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Midterm Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Message": {
+      "main": [
+        [
+          {
+            "node": "Classify Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify Message",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Classify Message",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Message": {
+      "main": [
+        [
+          {
+            "node": "Validate Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Classification": {
+      "main": [
+        [
+          {
+            "node": "Get Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Match KB Entries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match KB Entries": {
+      "main": [
+        [
+          {
+            "node": "Generate Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model (Response)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Response",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Generate Response",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Response": {
+      "main": [
+        [
+          {
+            "node": "Build Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Result": {
+      "main": [
+        [
+          {
+            "node": "Make Log Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make Log Row": {
+      "main": [
+        [
+          {
+            "node": "Log Interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Interaction": {
+      "main": [
+        [
+          {
+            "node": "Restore Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [],
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": null,
+  "tags": [],
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "cqEKOn8nUhem0Iyw",
+      "projectId": "KhErxUHlDhLuuNMh",
+      "project": {
+        "id": "KhErxUHlDhLuuNMh",
+        "name": "Michael Parina <mparina801@mycod.us>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "df40df10-5491-4f49-ba7e-a1c3f7ebc32e",
+        "createdAt": "2026-09-29T19:28:38.737Z",
+        "updatedAt": "2026-09-29T19:35:41.023Z"
+      },
+      "createdAt": "2026-11-12T15:56:55.955Z",
+      "updatedAt": "2026-11-12T15:56:55.955Z"
+    }
+  ],
+  "activeVersion": {
+    "versionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
+    "workflowId": "cqEKOn8nUhem0Iyw",
+    "nodes": [
+      {
+        "id": "4e5f6a72-8ca7-46c2-afef-e09727528ab3",
+        "name": "Midterm Webhook",
+        "webhookId": "f5e353b4-a6d8-4893-8b6b-0eb71c53feee",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "midterm-mp",
+          "responseMode": "responseNode",
+          "options": {}
+        }
+      },
+      {
+        "id": "89decb5d-c303-46c3-9b46-43735635b97e",
+        "name": "Extract Message",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          220,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const incoming = $input.first().json || {};\nconst body = incoming.body ?? {};\n\nlet message = \"\";\nif (typeof body === \"string\") {\n  message = body;\n} else if (body && typeof body === \"object\") {\n  message = body.message ?? body.text ?? body.question ?? body.notes ?? body.content ?? \"\";\n  if (!message) message = JSON.stringify(body);\n} else {\n  message = String(body ?? \"\");\n}\n\nmessage = String(message).trim().slice(0, 4000);\nif (!message) throw new Error(\"No message provided. Send JSON with a \\\"message\\\" field.\");\n\nreturn [{ json: { message, original: body, query: incoming.query ?? {} } }];"
+        }
+      },
+      {
+        "id": "0fbe26e4-b61b-4b19-8870-86f180c05c98",
+        "name": "Classify Message",
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          460,
+          0
+        ],
+        "parameters": {
+          "promptType": "define",
+          "text": "=You are classifying messages submitted to a CIS 91 midterm project about an AI-assisted video/content pipeline.\n\nChoose exactly ONE category from this list:\n1. \"Upload Format\" — file formats, codecs, resolution, file size, upload limits, export settings, posting/publishing/share behavior, missing captions after upload, thumbnail/crop/cover upload issues, or video duration/monetization thresholds.\n2. \"Captions and Discovery\" — writing captions/titles, hashtags, links, keywords, SEO, search/discovery, or audience targeting. This is about caption content, not about a caption disappearing during upload.\n3. \"AI Disclosure and Policy\" — labeling AI-generated content, disclosure rules, copyright, plagiarism, platform AI policies, academic integrity, comment moderation/removal, or correcting a published video.\n4. \"Analytics and Growth\" — views, engagement, retention, watch time, traffic sources, audience growth, scheduling, performance metrics, or hooks/first-second drop-off.\n\nDisambiguation examples:\n- \"Why did Instagram post my Reel without the caption I wrote?\" -> Upload Format (a posting/publishing issue).\n- \"What should I write in my caption?\" -> Captions and Discovery (caption content).\n- \"Do I need to label AI-generated narration?\" -> AI Disclosure and Policy.\n- \"Why do viewers leave in the first second?\" -> Analytics and Growth.\n\nMessage to classify:\n\"\"\"\n{{ $json.message }}\n\"\"\"\n\nReturn the structured JSON with:\n- category: exactly one of the four category names above\n- confidence: a number from 0.0 to 1.0\n- reasoning: one or two sentences explaining the choice.",
+          "hasOutputParser": true,
+          "options": {}
+        }
+      },
+      {
+        "id": "c4b17338-51b4-478a-a065-d2b933057a11",
+        "name": "OpenRouter Chat Model",
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          380,
+          200
+        ],
+        "parameters": {
+          "model": "deepseek/deepseek-v4.1-flash-1017",
+          "options": {
+            "temperature": 0
+          }
+        },
+        "credentials": {
+          "openRouterApi": {
+            "id": "ihBbPEQQ2ykUgmyB",
+            "name": "MP - OpenRouter"
+          }
+        }
+      },
+      {
+        "id": "5c4b93b7-985a-4ffe-9b0e-c89b7562a049",
+        "name": "Structured Output Parser",
+        "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+        "typeVersion": 1.3,
+        "position": [
+          600,
+          200
+        ],
+        "parameters": {
+          "jsonSchemaExample": "{\n  \"category\": \"Upload Format\",\n  \"confidence\": 0.95,\n  \"reasoning\": \"The message asks which file formats and size limits are accepted, which is an upload-format concern.\"\n}"
+        }
+      },
+      {
+        "id": "ae555b26-14ff-43e5-81c5-84cd2ba316ca",
+        "name": "Validate Classification",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          720,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const ALLOWED = [\"Upload Format\",\"Captions and Discovery\",\"AI Disclosure and Policy\",\"Analytics and Growth\"];\nconst src = $('Extract Message').first().json;\nconst ai = $input.first().json || {};\n\nlet out = ai.output ?? ai;\nif (typeof out === \"string\") {\n  try { out = JSON.parse(out); } catch {}\n}\nif (!out || typeof out !== \"object\") out = {};\n\nconst rawCategory = String(out.category ?? \"\").trim();\nconst canonical = ALLOWED.find((c) => c.toLowerCase() === rawCategory.toLowerCase()) || rawCategory;\nconst n = Number(out.confidence);\nconst confidence = Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;\nconst reasoning = String(out.reasoning ?? out.reason ?? \"\").trim() || \"No reasoning returned.\";\nconst outOfScope = confidence < 0.2;\n\nreturn [{\n  json: {\n    ok: true,\n    message: src.message,\n    classification: {\n      category: canonical,\n      confidence,\n      reasoning,\n    },\n    category_valid: ALLOWED.includes(canonical),\n    allowed_categories: ALLOWED,\n    out_of_scope: outOfScope,\n    original: src.original,\n    query: src.query,\n    at: new Date().toISOString(),\n  },\n}];"
+        }
+      },
+      {
+        "id": "81a2791f-ee57-463e-a041-887cb753360e",
+        "name": "Get Knowledge Base",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1,
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput",
+        "position": [
+          940,
+          0
+        ],
+        "parameters": {
+          "resource": "row",
+          "operation": "get",
+          "returnAll": true,
+          "dataTableId": {
+            "__rl": true,
+            "value": "LfSjn3DjYu3Fv0oH",
+            "mode": "id",
+            "cachedResultName": "cis-midterm-knowledge-base"
+          }
+        }
+      },
+      {
+        "id": "a781f9fd-3bf6-4ade-9788-f40b4051a32d",
+        "name": "Match KB Entries",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1160,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const cls = $('Validate Classification').first().json;\nconst rows = $input.all().map((i) => i.json).filter((r) => r && r.entry_id);\nconst category = String(cls.classification.category || \"\").toLowerCase();\nconst message = String(cls.message || \"\").toLowerCase();\nconst tokens = new Set(message.split(/[^a-z0-9]+/).filter(Boolean));\nconst outOfScope = Boolean(cls.out_of_scope);\n\nif (outOfScope) {\n  return [{\n    json: {\n      message: cls.message,\n      classification: cls.classification,\n      category_valid: cls.category_valid,\n      out_of_scope: true,\n      matched: [],\n      matched_count: 0,\n    },\n  }];\n}\n\nconst scored = rows\n  .map((r) => {\n    const kw = String(r.keywords || \"\").toLowerCase();\n    const platforms = String(r.platforms || \"\").toLowerCase();\n    let score = 0;\n    if (String(r.category || \"\").toLowerCase() === category) score += 2;\n    for (const part of kw.split(\",\").map((s) => s.trim()).filter(Boolean)) {\n      if (part && message.includes(part)) score += 3;\n    }\n    for (const t of tokens) {\n      if (t.length > 2 && kw.includes(t)) score += 1;\n      if (t.length > 2 && platforms.includes(t)) score += 1;\n    }\n    return { ...r, score };\n  })\n  .filter((r) => r.score > 0)\n  .sort((a, b) => b.score - a.score || String(a.entry_id).localeCompare(String(b.entry_id)))\n  .slice(0, 6);\n\nreturn [{\n  json: {\n    message: cls.message,\n    classification: cls.classification,\n    category_valid: cls.category_valid,\n    out_of_scope: false,\n    matched: scored,\n    matched_count: scored.length,\n  },\n}];"
+        }
+      },
+      {
+        "id": "e4b872bc-f44d-444e-8341-5391fbedda32",
+        "name": "Generate Response",
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          1400,
+          0
+        ],
+        "parameters": {
+          "promptType": "define",
+          "text": "=You are a professional support assistant for a CIS 91 midterm project about publishing short-form video to TikTok, YouTube Shorts, and Instagram Reels.\n\nA user sent this message:\n\"\"\"\n{{ $json.message }}\n\"\"\"\n\nThe classifier categorized it as:\n- Category: {{ $json.classification.category }}\n- Confidence: {{ $json.classification.confidence }}\n- Reasoning: {{ $json.classification.reasoning }}\n\nRelevant knowledge base entries:\n{{ JSON.stringify($json.matched, null, 2) }}\n\nRetrieval marked the question as out of scope: {{ $json.out_of_scope }}\n\nWrite a professional, helpful response that:\n1. Directly addresses the user's question.\n2. Uses only the facts in the knowledge base entries above; do not invent platform rules.\n3. Maintains a professional and helpful tone.\n4. Includes concrete next steps.\n5. If the knowledge base does not cover the issue, says so and recommends an escalation path (for example, check the platform's official help center or contact the instructor).\n6. If out_of_scope is true or there are no matched entries, clearly say the question is outside the project knowledge base and suggest an appropriate escalation.\n\nReturn structured JSON with:\n- response: the full response text (2–5 short paragraphs or a short list)\n- next_steps: an array of 2–4 concrete next steps\n- escalation: a short escalation note, or an empty string if none is needed.",
+          "hasOutputParser": true,
+          "options": {}
+        }
+      },
+      {
+        "id": "7505203e-7f21-41e1-867a-6bec6bfbed5d",
+        "name": "OpenRouter Chat Model (Response)",
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          1320,
+          200
+        ],
+        "parameters": {
+          "model": "deepseek/deepseek-v4.1-flash-1017",
+          "options": {
+            "temperature": 0.2
+          }
+        },
+        "credentials": {
+          "openRouterApi": {
+            "id": "ihBbPEQQ2ykUgmyB",
+            "name": "MP - OpenRouter"
+          }
+        }
+      },
+      {
+        "id": "0f6b912c-023a-49fb-8c8a-51064a531791",
+        "name": "Response Output Parser",
+        "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+        "typeVersion": 1.3,
+        "position": [
+          1540,
+          200
+        ],
+        "parameters": {
+          "jsonSchemaExample": "{\n  \"response\": \"A professional response that answers the question using the knowledge base.\",\n  \"next_steps\": [\n    \"First concrete step\",\n    \"Second concrete step\"\n  ],\n  \"escalation\": \"Contact the platform's official help center if the issue persists.\"\n}"
+        }
+      },
+      {
+        "id": "c7edbf4a-9b1e-4b8c-8d61-014435951bec",
+        "name": "Build Result",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1660,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const src = $('Match KB Entries').first().json;\nconst ai = $input.first().json || {};\n\nlet out = ai.output ?? ai;\nif (typeof out === \"string\") {\n  try { out = JSON.parse(out); } catch { out = { response: out }; }\n}\nif (!out || typeof out !== \"object\") out = {};\n\nconst response = String(out.response ?? out.answer ?? \"\").trim() || \"No response was generated. Please try again.\";\nconst nextSteps = Array.isArray(out.next_steps) ? out.next_steps.map((s) => String(s)).filter(Boolean) : [];\nconst escalation = String(out.escalation ?? \"\").trim();\nconst timestamp = new Date().toISOString();\n\nreturn [{\n  json: {\n    ok: true,\n    timestamp,\n    message: src.message,\n    classification: src.classification,\n    category_valid: src.category_valid,\n    matched_entries: src.matched.map((m) => ({\n      entry_id: m.entry_id,\n      question: m.question,\n      score: m.score,\n    })),\n    matched_count: src.matched_count,\n    out_of_scope: Boolean(src.out_of_scope || src.matched_count === 0),\n    ai_response: response,\n    next_steps: nextSteps,\n    escalation,\n    delivery_status: \"webhook_200\",\n  },\n}];"
+        }
+      },
+      {
+        "id": "5b6d9d39-5918-4fa0-b51e-c20b19849d2e",
+        "name": "Make Log Row",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1880,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const r = $input.first().json;\n\nreturn [{\n  json: {\n    timestamp: r.timestamp,\n    message: r.message,\n    category: r.classification.category,\n    confidence: r.classification.confidence,\n    reasoning: r.classification.reasoning,\n    matched_entries: (r.matched_entries || []).map((m) => m.entry_id).join(\", \"),\n    matched_count: r.matched_count,\n    out_of_scope: Boolean(r.out_of_scope),\n    ai_response: r.ai_response,\n    next_steps: JSON.stringify(r.next_steps || []),\n    escalation: r.escalation || \"\",\n    delivery_status: r.delivery_status,\n  },\n}];"
+        }
+      },
+      {
+        "id": "ba8edd7a-3301-447b-9fb6-14e743851070",
+        "name": "Log Interaction",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1,
+        "onError": "continueRegularOutput",
+        "position": [
+          2100,
+          0
+        ],
+        "parameters": {
+          "resource": "row",
+          "operation": "insert",
+          "dataTableId": {
+            "__rl": true,
+            "value": "kiE336aXGCLrTDFb",
+            "mode": "id",
+            "cachedResultName": "cis-midterm-interaction-log"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "schema": []
+          }
+        }
+      },
+      {
+        "id": "5d9c49bd-bdbd-45d4-acff-7a7caaba6369",
+        "name": "Restore Response",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2320,
+          0
+        ],
+        "parameters": {
+          "jsCode": "return [{ json: $('Build Result').first().json }];"
+        }
+      },
+      {
+        "id": "b9940911-53d8-4287-97b2-d759dea18a84",
+        "name": "Respond",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          2540,
+          0
+        ],
+        "parameters": {
+          "respondWith": "firstIncomingItem",
+          "options": {
+            "responseCode": 200,
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Access-Control-Allow-Methods",
+                  "value": "POST,OPTIONS"
+                },
+                {
+                  "name": "Access-Control-Allow-Headers",
+                  "value": "Content-Type"
+                },
+                {
+                  "name": "Cache-Control",
+                  "value": "no-store"
+                }
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Midterm Webhook": {
+        "main": [
+          [
+            {
+              "node": "Extract Message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract Message": {
+        "main": [
+          [
+            {
+              "node": "Classify Message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Classify Message",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Structured Output Parser": {
+        "ai_outputParser": [
+          [
+            {
+              "node": "Classify Message",
+              "type": "ai_outputParser",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Classify Message": {
+        "main": [
+          [
+            {
+              "node": "Validate Classification",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validate Classification": {
+        "main": [
+          [
+            {
+              "node": "Get Knowledge Base",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Knowledge Base": {
+        "main": [
+          [
+            {
+              "node": "Match KB Entries",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Match KB Entries": {
+        "main": [
+          [
+            {
+              "node": "Generate Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenRouter Chat Model (Response)": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Generate Response",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Response Output Parser": {
+        "ai_outputParser": [
+          [
+            {
+              "node": "Generate Response",
+              "type": "ai_outputParser",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Generate Response": {
+        "main": [
+          [
+            {
+              "node": "Build Result",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Result": {
+        "main": [
+          [
+            {
+              "node": "Make Log Row",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Make Log Row": {
+        "main": [
+          [
+            {
+              "node": "Log Interaction",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Log Interaction": {
+        "main": [
+          [
+            {
+              "node": "Restore Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Restore Response": {
+        "main": [
+          [
+            {
+              "node": "Respond",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Michael Parina",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "createdAt": "2026-11-12T19:24:20.869Z",
+    "updatedAt": "2026-11-12T19:24:20.869Z",
+    "workflowPublishHistory": [
+      {
+        "id": 224,
+        "workflowId": "cqEKOn8nUhem0Iyw",
+        "versionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
+        "event": "activated",
+        "userId": "df40df10-5491-4f49-ba7e-a1c3f7ebc32e",
+        "createdAt": "2026-11-12T19:24:21.059Z"
+      },
+      {
+        "id": 225,
+        "workflowId": "cqEKOn8nUhem0Iyw",
+        "versionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
+        "event": "deactivated",
+        "userId": "df40df10-5491-4f49-ba7e-a1c3f7ebc32e",
+        "createdAt": "2026-11-12T19:24:21.352Z"
+      },
+      {
+        "id": 226,
+        "workflowId": "cqEKOn8nUhem0Iyw",
+        "versionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
+        "event": "activated",
+        "userId": "df40df10-5491-4f49-ba7e-a1c3f7ebc32e",
+        "createdAt": "2026-11-12T19:24:21.352Z"
+      }
+    ]
+  },
+  "parentFolder": null
+}
