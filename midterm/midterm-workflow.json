@@ -3,19 +3,19 @@
   "name": "MP - Midterm",
   "description": null,
   "active": true,
-  "activeVersionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
+  "activeVersionId": "2c6ebb1c-0396-4c95-aff9-202069672e1b",
   "createdAt": "2026-11-12T15:56:55.955Z",
-  "updatedAt": "2026-11-12T19:24:20.867Z",
+  "updatedAt": "2026-11-13T00:15:29.379Z",
   "isArchived": false,
-  "versionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
-  "versionCounter": 6,
+  "versionId": "2c6ebb1c-0396-4c95-aff9-202069672e1b",
+  "versionCounter": 7,
   "sourceWorkflowId": null,
   "triggerCount": 1,
   "nodes": [
     {
-      "id": "4e5f6a72-8ca7-46c2-afef-e09727528ab3",
+      "id": "8226faf7-1da1-4788-a6c9-7b027dbc5921",
       "name": "Midterm Webhook",
-      "webhookId": "f5e353b4-a6d8-4893-8b6b-0eb71c53feee",
+      "webhookId": "5818c90c-9374-40b9-a29b-d7330c56a5aa",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
@@ -26,11 +26,18 @@
         "httpMethod": "POST",
         "path": "midterm-mp",
         "responseMode": "responseNode",
+        "authentication": "headerAuth",
         "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "midtermAuth",
+          "name": "Midterm Webhook Auth"
+        }
       }
     },
     {
-      "id": "89decb5d-c303-46c3-9b46-43735635b97e",
+      "id": "8f52c511-83d8-4049-9326-03e93c65b18d",
       "name": "Extract Message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -43,7 +50,7 @@
       }
     },
     {
-      "id": "0fbe26e4-b61b-4b19-8870-86f180c05c98",
+      "id": "015630b3-0083-478e-95ed-718506896876",
       "name": "Classify Message",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -59,7 +66,7 @@
       }
     },
     {
-      "id": "c4b17338-51b4-478a-a065-d2b933057a11",
+      "id": "8c2b8dbf-c9bb-4777-9c32-3720b4479c29",
       "name": "OpenRouter Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
@@ -81,7 +88,7 @@
       }
     },
     {
-      "id": "5c4b93b7-985a-4ffe-9b0e-c89b7562a049",
+      "id": "815c62d5-8fb4-4aa3-8334-48036d0f3d58",
       "name": "Structured Output Parser",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -94,7 +101,7 @@
       }
     },
     {
-      "id": "ae555b26-14ff-43e5-81c5-84cd2ba316ca",
+      "id": "8623ce55-3eec-4843-ab17-d98faca9bbfb",
       "name": "Validate Classification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -107,7 +114,7 @@
       }
     },
     {
-      "id": "81a2791f-ee57-463e-a041-887cb753360e",
+      "id": "92d79fd9-a0b2-48fb-b60e-e676176ab744",
       "name": "Get Knowledge Base",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
@@ -130,7 +137,7 @@
       }
     },
     {
-      "id": "a781f9fd-3bf6-4ade-9788-f40b4051a32d",
+      "id": "d7393d68-5708-48cb-a51f-726a5446b559",
       "name": "Match KB Entries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -143,7 +150,7 @@
       }
     },
     {
-      "id": "e4b872bc-f44d-444e-8341-5391fbedda32",
+      "id": "5798193f-a05f-448f-acf6-d7c13cf37c82",
       "name": "Generate Response",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -159,7 +166,7 @@
       }
     },
     {
-      "id": "7505203e-7f21-41e1-867a-6bec6bfbed5d",
+      "id": "0913e40b-b225-4d28-b51c-8b6572a1648e",
       "name": "OpenRouter Chat Model (Response)",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
@@ -181,7 +188,7 @@
       }
     },
     {
-      "id": "0f6b912c-023a-49fb-8c8a-51064a531791",
+      "id": "fffcc031-3e6f-4286-a75b-379c90b80baa",
       "name": "Response Output Parser",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
@@ -194,7 +201,7 @@
       }
     },
     {
-      "id": "c7edbf4a-9b1e-4b8c-8d61-014435951bec",
+      "id": "73cfd6d5-d610-4b83-87bd-8d3d993d2172",
       "name": "Build Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -207,7 +214,7 @@
       }
     },
     {
-      "id": "5b6d9d39-5918-4fa0-b51e-c20b19849d2e",
+      "id": "37c7b2ad-49db-4c91-b30f-f113e093b40f",
       "name": "Make Log Row",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -220,7 +227,7 @@
       }
     },
     {
-      "id": "ba8edd7a-3301-447b-9fb6-14e743851070",
+      "id": "973d86f0-7d8e-4ad9-8c16-56f609aab896",
       "name": "Log Interaction",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1,
@@ -246,7 +253,7 @@
       }
     },
     {
-      "id": "5d9c49bd-bdbd-45d4-acff-7a7caaba6369",
+      "id": "626f7e58-f2f1-422e-9647-35b348eddef6",
       "name": "Restore Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -259,7 +266,7 @@
       }
     },
     {
-      "id": "b9940911-53d8-4287-97b2-d759dea18a84",
+      "id": "1a1cf119-9068-4eac-985f-11f9ca27739a",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -283,7 +290,7 @@
               },
               {
                 "name": "Access-Control-Allow-Headers",
-                "value": "Content-Type"
+                "value": "Content-Type, X-Midterm-Key"
               },
               {
                 "name": "Cache-Control",
@@ -492,13 +499,13 @@
     }
   ],
   "activeVersion": {
-    "versionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
+    "versionId": "2c6ebb1c-0396-4c95-aff9-202069672e1b",
     "workflowId": "cqEKOn8nUhem0Iyw",
     "nodes": [
       {
-        "id": "4e5f6a72-8ca7-46c2-afef-e09727528ab3",
+        "id": "8226faf7-1da1-4788-a6c9-7b027dbc5921",
         "name": "Midterm Webhook",
-        "webhookId": "f5e353b4-a6d8-4893-8b6b-0eb71c53feee",
+        "webhookId": "5818c90c-9374-40b9-a29b-d7330c56a5aa",
         "type": "n8n-nodes-base.webhook",
         "typeVersion": 2,
         "position": [
@@ -509,11 +516,18 @@
           "httpMethod": "POST",
           "path": "midterm-mp",
           "responseMode": "responseNode",
+          "authentication": "headerAuth",
           "options": {}
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "midtermAuth",
+            "name": "Midterm Webhook Auth"
+          }
         }
       },
       {
-        "id": "89decb5d-c303-46c3-9b46-43735635b97e",
+        "id": "8f52c511-83d8-4049-9326-03e93c65b18d",
         "name": "Extract Message",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -526,7 +540,7 @@
         }
       },
       {
-        "id": "0fbe26e4-b61b-4b19-8870-86f180c05c98",
+        "id": "015630b3-0083-478e-95ed-718506896876",
         "name": "Classify Message",
         "type": "@n8n/n8n-nodes-langchain.agent",
         "typeVersion": 3.1,
@@ -542,7 +556,7 @@
         }
       },
       {
-        "id": "c4b17338-51b4-478a-a065-d2b933057a11",
+        "id": "8c2b8dbf-c9bb-4777-9c32-3720b4479c29",
         "name": "OpenRouter Chat Model",
         "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
         "typeVersion": 1,
@@ -564,7 +578,7 @@
         }
       },
       {
-        "id": "5c4b93b7-985a-4ffe-9b0e-c89b7562a049",
+        "id": "815c62d5-8fb4-4aa3-8334-48036d0f3d58",
         "name": "Structured Output Parser",
         "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
         "typeVersion": 1.3,
@@ -577,7 +591,7 @@
         }
       },
       {
-        "id": "ae555b26-14ff-43e5-81c5-84cd2ba316ca",
+        "id": "8623ce55-3eec-4843-ab17-d98faca9bbfb",
         "name": "Validate Classification",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -590,7 +604,7 @@
         }
       },
       {
-        "id": "81a2791f-ee57-463e-a041-887cb753360e",
+        "id": "92d79fd9-a0b2-48fb-b60e-e676176ab744",
         "name": "Get Knowledge Base",
         "type": "n8n-nodes-base.dataTable",
         "typeVersion": 1,
@@ -613,7 +627,7 @@
         }
       },
       {
-        "id": "a781f9fd-3bf6-4ade-9788-f40b4051a32d",
+        "id": "d7393d68-5708-48cb-a51f-726a5446b559",
         "name": "Match KB Entries",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -626,7 +640,7 @@
         }
       },
       {
-        "id": "e4b872bc-f44d-444e-8341-5391fbedda32",
+        "id": "5798193f-a05f-448f-acf6-d7c13cf37c82",
         "name": "Generate Response",
         "type": "@n8n/n8n-nodes-langchain.agent",
         "typeVersion": 3.1,
@@ -642,7 +656,7 @@
         }
       },
       {
-        "id": "7505203e-7f21-41e1-867a-6bec6bfbed5d",
+        "id": "0913e40b-b225-4d28-b51c-8b6572a1648e",
         "name": "OpenRouter Chat Model (Response)",
         "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
         "typeVersion": 1,
@@ -664,7 +678,7 @@
         }
       },
       {
-        "id": "0f6b912c-023a-49fb-8c8a-51064a531791",
+        "id": "fffcc031-3e6f-4286-a75b-379c90b80baa",
         "name": "Response Output Parser",
         "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
         "typeVersion": 1.3,
@@ -677,7 +691,7 @@
         }
       },
       {
-        "id": "c7edbf4a-9b1e-4b8c-8d61-014435951bec",
+        "id": "73cfd6d5-d610-4b83-87bd-8d3d993d2172",
         "name": "Build Result",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -690,7 +704,7 @@
         }
       },
       {
-        "id": "5b6d9d39-5918-4fa0-b51e-c20b19849d2e",
+        "id": "37c7b2ad-49db-4c91-b30f-f113e093b40f",
         "name": "Make Log Row",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -703,7 +717,7 @@
         }
       },
       {
-        "id": "ba8edd7a-3301-447b-9fb6-14e743851070",
+        "id": "973d86f0-7d8e-4ad9-8c16-56f609aab896",
         "name": "Log Interaction",
         "type": "n8n-nodes-base.dataTable",
         "typeVersion": 1,
@@ -729,7 +743,7 @@
         }
       },
       {
-        "id": "5d9c49bd-bdbd-45d4-acff-7a7caaba6369",
+        "id": "626f7e58-f2f1-422e-9647-35b348eddef6",
         "name": "Restore Response",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -742,7 +756,7 @@
         }
       },
       {
-        "id": "b9940911-53d8-4287-97b2-d759dea18a84",
+        "id": "1a1cf119-9068-4eac-985f-11f9ca27739a",
         "name": "Respond",
         "type": "n8n-nodes-base.respondToWebhook",
         "typeVersion": 1.1,
@@ -766,7 +780,7 @@
                 },
                 {
                   "name": "Access-Control-Allow-Headers",
-                  "value": "Content-Type"
+                  "value": "Content-Type, X-Midterm-Key"
                 },
                 {
                   "name": "Cache-Control",
@@ -950,32 +964,32 @@
     "name": null,
     "description": null,
     "autosaved": false,
-    "createdAt": "2026-11-12T19:24:20.869Z",
-    "updatedAt": "2026-11-12T19:24:20.869Z",
+    "createdAt": "2026-11-13T00:15:29.382Z",
+    "updatedAt": "2026-11-13T00:15:29.382Z",
     "workflowPublishHistory": [
       {
-        "id": 224,
+        "id": 240,
         "workflowId": "cqEKOn8nUhem0Iyw",
-        "versionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
+        "versionId": "2c6ebb1c-0396-4c95-aff9-202069672e1b",
         "event": "activated",
         "userId": "df40df10-5491-4f49-ba7e-a1c3f7ebc32e",
-        "createdAt": "2026-11-12T19:24:21.059Z"
+        "createdAt": "2026-11-13T00:15:29.588Z"
       },
       {
-        "id": 225,
+        "id": 241,
         "workflowId": "cqEKOn8nUhem0Iyw",
-        "versionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
+        "versionId": "2c6ebb1c-0396-4c95-aff9-202069672e1b",
         "event": "deactivated",
         "userId": "df40df10-5491-4f49-ba7e-a1c3f7ebc32e",
-        "createdAt": "2026-11-12T19:24:21.352Z"
+        "createdAt": "2026-11-13T00:15:29.898Z"
       },
       {
-        "id": 226,
+        "id": 242,
         "workflowId": "cqEKOn8nUhem0Iyw",
-        "versionId": "76b51b67-3d1c-4d09-80cb-980d7f4d45db",
+        "versionId": "2c6ebb1c-0396-4c95-aff9-202069672e1b",
         "event": "activated",
         "userId": "df40df10-5491-4f49-ba7e-a1c3f7ebc32e",
-        "createdAt": "2026-11-12T19:24:21.352Z"
+        "createdAt": "2026-11-13T00:15:29.898Z"
       }
     ]
   },
