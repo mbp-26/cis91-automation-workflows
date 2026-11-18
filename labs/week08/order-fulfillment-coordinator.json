@@ -364,6 +364,38 @@
           "responseCode": 200
         }
       }
+    },
+    {
+      "id": "2fc9fcf1-41e2-4eaf-8b6e-45494602be7e",
+      "name": "Note: Retry and error output",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        -200
+      ],
+      "parameters": {
+        "content": "## Notify Warehouse: error handling\nOpen the node, then the **Settings** tab:\n- **Retry On Fail:** on\n- **Max Tries:** 3\n- **Wait Between Tries:** 1000 ms\n- **On Error:** Continue (using error output)\n\nTest 6 (warehouse URL returning 404) took the red error output after 3 tries and returned 200 with `warehouse_notified: false`.",
+        "width": 330,
+        "height": 250,
+        "color": 5
+      }
+    },
+    {
+      "id": "7a327840-f641-4861-8d19-35209c9a79e5",
+      "name": "Note: Validation failures",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        600,
+        560
+      ],
+      "parameters": {
+        "content": "## Validation error path\nInvalid orders go **Validation Check (false) → Error Response → Respond 400**.\n\nExample executions: **#3103, #3104, #3105** and the newest invalid-order run.\nn8n lists them as **Succeeded** because the workflow deliberately returned an HTTP **400** with the validation errors. Open one to see the error response.",
+        "width": 420,
+        "height": 230,
+        "color": 3
+      }
     }
   ],
   "connections": {
@@ -509,6 +541,5 @@
   },
   "pinData": {},
   "meta": {},
-  "tags": [],
-  "versionId": "d7626f51-5e90-4d71-b72f-17dc7f14d2e4"
+  "tags": []
 }
