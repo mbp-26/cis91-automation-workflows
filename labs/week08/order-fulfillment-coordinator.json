@@ -148,6 +148,8 @@
     {
       "id": "fb0c19ac-928f-4f2a-a12a-b1de175ee3ce",
       "name": "Notify Warehouse",
+      "notesInFlow": true,
+      "notes": "Settings: Retry On Fail = on, Max Tries = 3, Wait Between Tries = 1000 ms, On Error = Continue (using error output)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "retryOnFail": true,
